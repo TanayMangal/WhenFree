@@ -389,7 +389,7 @@ export default function GroupAvailability({
                         )}-${slot}`}
                         className="slot"
                         style={{
-                          backgroundColor: `rgba(79, 70, 229, ${
+                          backgroundColor: `rgba(172, 43, 55, ${
                             0.06 +
                             ratio *
                               0.72
