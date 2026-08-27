@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import WeeklyScheduleGrid from "@/components/weekly-schedule-grid";
 import { useMemo, useState } from "react";
 
 type Recurring = { id: string; day_of_week: number; start_time: string; end_time: string };
@@ -78,10 +79,28 @@ export default function ScheduleEditor({ initialRecurring, initialExceptions }: 
   }
 
   return (
-    <div className="stack">
-      {message && <div className={message.includes("Imported") ? "notice" : "error"}>{message}</div>}
+  <div className="stack">
+    {message && (
+      <div className={message.includes("Imported") ? "notice" : "error"}>
+        {message}
+      </div>
+    )}
 
-      <div className="grid grid-2">
+    <WeeklyScheduleGrid
+      recurring={recurring}
+      onAdded={(block) => {
+        setRecurring((current) => [...current, block]);
+        setMessage("Busy time added.");
+      }}
+      onRemoved={(id) => {
+        setRecurring((current) =>
+          current.filter((block) => block.id !== id)
+        );
+      }}
+      onMessage={setMessage}
+    />
+
+    <div className="grid grid-2">
         <section className="card stack">
           <div><h2 className="h2">Normal weekly schedule</h2><div className="muted small">Add times that are normally busy every week.</div></div>
           <div className="field"><label>Day</label><select className="select" value={day} onChange={e => setDay(Number(e.target.value))}>{days.map((d,i)=><option key={d} value={i}>{d}</option>)}</select></div>
