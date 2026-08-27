@@ -24,7 +24,12 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
   const ids = members.map(m => m.id);
 
   const [{ data: recurring }, { data: exceptions }] = ids.length ? await Promise.all([
-    supabase.from("recurring_busy_blocks").select("user_id,day_of_week,start_time,end_time").in("user_id", ids),
+    supabase.from("recurring_busy_blocks").select(`user_id, day_of_week, start_time, end_time, schedule_period_id, schedule_periods (
+      start_date,
+      end_date
+    )
+  `)
+  .in("user_id", ids),
     supabase.from("schedule_exceptions").select("user_id,date,start_time,end_time,kind,all_day").in("user_id", ids),
   ]) : [{data:[]},{data:[]}];
 

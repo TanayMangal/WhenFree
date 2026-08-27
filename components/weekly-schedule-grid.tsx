@@ -57,11 +57,13 @@ function formatTime(minutes: number) {
 
 export default function WeeklyScheduleGrid({
   recurring,
+  schedulePeriodId,
   onAdded,
   onRemoved,
   onMessage,
 }: {
   recurring: Recurring[];
+  schedulePeriodId: string;
   onAdded: (block: Recurring) => void;
   onRemoved: (id: string) => void;
   onMessage: (message: string) => void;
@@ -149,6 +151,7 @@ export default function WeeklyScheduleGrid({
         day_of_week: day,
         start_time: toTime(startMinute),
         end_time: toTime(endMinute),
+        schedule_period_id: schedulePeriodId,
       })
       .select()
       .single();
@@ -203,6 +206,7 @@ export default function WeeklyScheduleGrid({
       day_of_week: number;
       start_time: string;
       end_time: string;
+      schedule_period_id?: string | null;
     }[] = [];
 
     for (const block of affectedBlocks) {
