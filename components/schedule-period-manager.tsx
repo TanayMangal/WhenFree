@@ -45,202 +45,178 @@ export default function SchedulePeriodManager({
   selectedPeriodId: string | null;
   onSelect: (period: SchedulePeriod | null) => void;
 }) {
-  const [periods, setPeriods] = useState<SchedulePeriod[]>([]);
-  const [message, setMessage] = useState("");
+  const [periods, setPeriods] =
+    useState<SchedulePeriod[]>([]);
 
-  async function loadPeriods() {
-    const supabase = createClient();
+  const [loading, setLoading] =
+    useState(true);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from("schedule_periods")
-      .select("*")
-      .eq("user_id", user.id);
-
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
-
-    setPeriods(data ?? []);
-  }
+  const [message, setMessage] =
+    useState("");
 
   useEffect(() => {
-    void loadPeriods();
-  }, []);
+    async function setupTerms() {
+      const supabase = createClient();
 
-  async function createTerm(term: (typeof TERMS)[number]) {
-    const alreadyExists = periods.some(
-      (period) => period.name === term.name
-    );
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (alreadyExists) {
-      const existing = periods.find(
-        (period) => period.name === term.name
-      );
-
-      if (existing) {
-        onSelect(existing);
-        setMessage(`${term.name} already exists.`);
+      if (!user) {
+        setLoading(false);
+        return;
       }
 
-      return;
+      const { data: existing, error } =
+        await supabase
+          .from("schedule_periods")
+          .select("*")
+          .eq("user_id", user.id);
+
+      if (error) {
+        setMessage(error.message);
+        setLoading(false);
+        return;
+      }
+
+      let allPeriods =
+        existing ?? [];
+
+      const missingTerms =
+        TERMS.filter(
+          (term) =>
+            !allPeriods.some(
+              (period) =>
+                period.name ===
+                term.name
+            )
+        );
+
+      if (missingTerms.length > 0) {
+        const payload =
+          missingTerms.map(
+            (term) => ({
+              user_id: user.id,
+              name: term.name,
+              start_date:
+                term.start_date,
+              end_date:
+                term.end_date,
+            })
+          );
+
+        const {
+          data: created,
+          error: insertError,
+        } = await supabase
+          .from("schedule_periods")
+          .insert(payload)
+          .select();
+
+        if (insertError) {
+          setMessage(
+            insertError.message
+          );
+          setLoading(false);
+          return;
+        }
+
+        allPeriods = [
+          ...allPeriods,
+          ...(created ?? []),
+        ];
+      }
+
+      setPeriods(allPeriods);
+
+      setLoading(false);
     }
 
-    const supabase = createClient();
+    void setupTerms();
+  }, []);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setMessage("You must be signed in.");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("schedule_periods")
-      .insert({
-        user_id: user.id,
-        name: term.name,
-        start_date: term.start_date,
-        end_date: term.end_date,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
-
-    setPeriods((current) => [...current, data]);
-    onSelect(data);
-
-    setMessage(`${term.name} created.`);
-  }
-
-  async function deleteTerm(period: SchedulePeriod) {
-    const confirmed = window.confirm(
-      `Delete ${period.name} and its recurring schedule?`
+  if (loading) {
+    return (
+      <section className="card">
+        <div className="muted">
+          Loading term schedules...
+        </div>
+      </section>
     );
-
-    if (!confirmed) return;
-
-    const supabase = createClient();
-
-    const { error } = await supabase
-      .from("schedule_periods")
-      .delete()
-      .eq("id", period.id);
-
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
-
-    setPeriods((current) =>
-      current.filter((item) => item.id !== period.id)
-    );
-
-    if (selectedPeriodId === period.id) {
-      onSelect(null);
-    }
-
-    setMessage(`${period.name} deleted.`);
   }
 
   return (
     <section className="card stack">
       <div>
-        <h2 className="h2">Term Schedules</h2>
+        <h2 className="h2">
+          Term Schedules
+        </h2>
 
         <div className="muted small">
-          Create a different weekly schedule for each term.
-          The dates are automatically set from the
-          2026–2027 senior calendar.
+          Choose the term whose weekly
+          schedule you want to edit.
         </div>
       </div>
 
       <div className="stack">
         {TERMS.map((term) => {
-          const period = periods.find(
-            (item) => item.name === term.name
-          );
+          const period =
+            periods.find(
+              (item) =>
+                item.name === term.name
+            );
 
           const selected =
-            period?.id === selectedPeriodId;
+            period?.id ===
+            selectedPeriodId;
 
           return (
             <div
               key={term.name}
               className="row"
               style={{
-                justifyContent: "space-between",
-                border: "1px solid var(--border)",
+                justifyContent:
+                  "space-between",
+                border:
+                  "1px solid var(--border)",
                 borderRadius: 12,
                 padding: 12,
               }}
             >
               <div>
-                <strong>{term.name}</strong>
+                <strong>
+                  {term.name}
+                </strong>
 
                 <div className="muted small">
                   {term.displayDates}
                 </div>
               </div>
 
-              <div className="row">
-                {period ? (
-                  <>
-                    <button
-                      className={
-                        selected
-                          ? "btn"
-                          : "btn secondary"
-                      }
-                      type="button"
-                      onClick={() => onSelect(period)}
-                    >
-                      {selected
-                        ? "Editing"
-                        : "Edit Schedule"}
-                    </button>
-
-                    <button
-                      className="btn secondary"
-                      type="button"
-                      onClick={() =>
-                        void deleteTerm(period)
-                      }
-                    >
-                      Delete
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    className="btn"
-                    type="button"
-                    onClick={() =>
-                      void createTerm(term)
-                    }
-                  >
-                    Create Schedule
-                  </button>
-                )}
-              </div>
+              {period && (
+                <button
+                  className={
+                    selected
+                      ? "btn"
+                      : "btn secondary"
+                  }
+                  type="button"
+                  onClick={() =>
+                    onSelect(period)
+                  }
+                >
+                  {selected
+                    ? "Editing"
+                    : "Edit Schedule"}
+                </button>
+              )}
             </div>
           );
         })}
       </div>
 
       {message && (
-        <div className="muted small">
+        <div className="error">
           {message}
         </div>
       )}
